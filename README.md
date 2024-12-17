@@ -21,14 +21,14 @@ git clone https://github.com/Arin1599/Pdf-merger-and-inverter.git
 
 
 2. Install dependencies:
-
+```bash
 pip install -r requirements.txt
-
+```
 
 3. Run the script:
-
+```bash
 python pdf_inverter.py
-
+```
 
 4. Merge PDFs: Click the "Add PDFs" button to select PDFs for merging, and then click "Merge".
 
