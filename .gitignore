@@ -1,0 +1,21 @@
+# Ignore virtual environment
+pdf_inverter/
+
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore environment files
+.env
+.venv
+env/
+
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+
+# Ignore other system files
+.DS_Store
+Thumbs.db
