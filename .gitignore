@@ -19,3 +19,7 @@ env/
 # Ignore other system files
 .DS_Store
 Thumbs.db
+
+#ignore the .gitignore file itself as well as .bat file
+.gitignore
+*.bat
