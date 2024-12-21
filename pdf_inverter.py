@@ -9,8 +9,8 @@ class PDFToolApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PDF Merger & Reverser")
-        self.root.geometry("700x600")
-        self.root.resizable(True, True)  # Allow window to resize
+        self.root.geometry("800x600")  # Increased width to 800px
+        self.root.resizable(False, False)  # Disable window resizing
 
         # Color Palette
         self.setup_colors()
@@ -100,15 +100,34 @@ class PDFToolApp:
         )
         self.pdf_listbox.pack(fill=tk.X, pady=5)
 
-        button_frame = tk.Frame(add_frame, bg=self.BG_COLOR)
-        button_frame.pack(fill=tk.X, expand=True, pady=5)
+        # First row of buttons
+        button_frame_1 = tk.Frame(add_frame, bg=self.BG_COLOR)
+        button_frame_1.pack(fill=tk.X, expand=True, pady=5)
 
-        # Create buttons and pack them with fill and side=LEFT to ensure proportional sizing
-        ttk.Button(button_frame, text="Add PDFs", command=self.add_multiple_pdfs).pack(side=tk.LEFT, fill=tk.X, padx=5, pady=5)
-        ttk.Button(button_frame, text="Remove", command=self.remove_pdf).pack(side=tk.LEFT, fill=tk.X, padx=5, pady=5)
-        ttk.Button(button_frame, text="Move Up", command=self.move_up).pack(side=tk.LEFT, fill=tk.X, padx=5, pady=5)
-        ttk.Button(button_frame, text="Move Down", command=self.move_down).pack(side=tk.LEFT, fill=tk.X, padx=5, pady=5)
-        ttk.Button(button_frame, text="Merge", command=self.merge_pdfs).pack(side=tk.RIGHT, padx=5, pady=5)
+        # Create first row of buttons with equal spacing
+        buttons_1 = [
+            ("Add PDFs", self.add_multiple_pdfs),
+            ("Remove", self.remove_pdf),
+            ("Move Up", self.move_up),
+            ("Move Down", self.move_down),
+            ("Reverse List", self.reverse_list)
+        ]
+
+        for text, command in buttons_1:
+            ttk.Button(button_frame_1, text=text, command=command).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+        # Second row of buttons
+        button_frame_2 = tk.Frame(add_frame, bg=self.BG_COLOR)
+        button_frame_2.pack(fill=tk.X, expand=True, pady=10)  # Increased vertical padding
+
+        # Add a frame for centering the bottom buttons
+        center_frame = tk.Frame(button_frame_2, bg=self.BG_COLOR)
+        center_frame.pack(expand=True)
+
+        # Create second row of buttons centered
+        ttk.Button(center_frame, text="Clear List", command=self.clear_list).pack(side=tk.LEFT, padx=5)
+        ttk.Button(center_frame, text="Merge", command=self.merge_pdfs).pack(side=tk.LEFT, padx=5)
+
 
         # Separator
         tk.Frame(self.main_frame, bg=self.FONT_COLOR, height=2).pack(fill=tk.X, pady=10)
@@ -139,6 +158,24 @@ class PDFToolApp:
         # Progress Bar
         self.progress_bar = ttk.Progressbar(self.main_frame, mode="determinate")
         self.progress_bar.pack(fill=tk.X, pady=20)
+
+    def reverse_list(self):
+        """Reverse the order of PDFs in the list"""
+        if not self.merge_pdf_list:
+            messagebox.showwarning("Warning", "No PDFs in the list to reverse.")
+            return
+            
+        self.merge_pdf_list.reverse()
+        self.update_pdf_listbox()
+        
+    def clear_list(self):
+        """Clear all PDFs from the list"""
+        if not self.merge_pdf_list:
+            messagebox.showwarning("Warning", "List is already empty.")
+            return
+            
+        self.merge_pdf_list.clear()
+        self.pdf_listbox.delete(0, tk.END)
 
     def add_multiple_pdfs(self):
         file_paths = filedialog.askopenfilenames(title="Select PDFs to Merge", filetypes=[("PDF files", "*.pdf")])
