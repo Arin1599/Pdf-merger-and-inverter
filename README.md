@@ -16,9 +16,9 @@ This is a Python-based graphical user interface (GUI) tool that allows users to 
 
 ## How to Use:
 1. Clone the repository:
-
+```bash
 git clone https://github.com/Arin1599/Pdf-merger-and-inverter.git
-
+```
 
 2. Install dependencies:
 ```bash
