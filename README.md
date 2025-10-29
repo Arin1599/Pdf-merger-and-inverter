@@ -1,12 +1,13 @@
-# PDF Merger & Reverser Tool
+# PDF Wizard
 
-A powerful Python-based graphical user interface (GUI) tool for comprehensive PDF management. This application allows users to merge multiple PDF files, reverse page order, and features an advanced visual page editor with drag-and-drop functionality for rearranging pages and inserting images.
+A powerful Python-based graphical user interface (GUI) tool for comprehensive PDF management. PDF Wizard allows users to merge multiple PDF files, reverse page order, sign documents, and features an advanced visual page editor with drag-and-drop functionality for rearranging pages and inserting images.
 
 ## Features:
 
 ### Core Features:
 - **Merge PDFs**: Select and combine multiple PDFs into a single document with customizable order
 - **Reverse PDF**: Reverse the pages of an individual PDF and save it as a new file
+- **Sign PDF**: Add digital signatures to any PDF page with visual drag-and-drop placement
 - **Visual Page Editor**: Advanced editor window with thumbnail previews of all pages
 - **Drag & Drop Reordering**: Click and drag page thumbnails to rearrange pages visually
 - **Insert Images**: Add JPG, PNG, GIF, BMP, or TIFF images as new PDF pages
@@ -20,6 +21,7 @@ A powerful Python-based graphical user interface (GUI) tool for comprehensive PD
 - **Visual Feedback**: Highlighted selections and hover effects for better user experience
 - **Insert Buttons**: Convenient "+" buttons between pages for quick content insertion
 - **Page Numbering**: Clear page number badges on each thumbnail
+- **Multi-Page Signing**: Add signatures to multiple pages in a single session
 
 ## Technologies Used:
 - **Python 3.x**
@@ -61,6 +63,11 @@ python pdf_inverter.py
    - Select a PDF file
    - Click "Reverse" to save a reversed copy
 
+3. **Sign a PDF**:
+   - Click "Browse PDF" in the Sign PDF section
+   - Select the PDF you want to sign
+   - Click "Open Signer" to launch the signature tool
+
 ### Advanced Page Editor:
 
 1. **Open Page Editor**:
@@ -84,6 +91,27 @@ python pdf_inverter.py
 5. **Save Your Work**:
    - Click "Save PDF" to export your edited document
    - Choose a location and filename
+
+### PDF Signature Tool:
+
+1. **Select Signature Image**:
+   - Click "Select Signature" button
+   - Choose an image file (PNG, JPG, etc.) containing your signature
+
+2. **Place Signature**:
+   - Click and drag on the PDF page to create a signature box
+   - Adjust the size and position as needed
+   - Click "Add to This Page" to confirm placement
+
+3. **Navigate Pages**:
+   - Use "Previous" and "Next" buttons to move between pages
+   - Add signatures to multiple pages as needed
+   - Status bar shows which pages have signatures
+
+4. **Save Signed PDF**:
+   - Click "Save Signed PDF" when done
+   - Choose output location and filename
+   - Your signed PDF is ready!
 
 ## Supported File Formats:
 - **PDF**: .pdf

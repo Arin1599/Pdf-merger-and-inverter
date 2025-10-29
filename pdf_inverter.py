@@ -12,8 +12,8 @@ import tempfile
 class PDFToolApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PDF Merger & Reverser")
-        self.root.geometry("800x650")  # Increased width to 800px
+        self.root.title("PDF Wizard")
+        self.root.geometry("800x750")  # Increased height to accommodate Sign PDF section
         self.root.resizable(False, False)  # Disable window resizing
 
         # Color Palette
@@ -174,11 +174,33 @@ class PDFToolApp:
         ttk.Button(reverse_frame, text="Browse", command=self.select_reverse_pdf).pack(side=tk.LEFT, padx=5, pady=5)
         ttk.Button(reverse_frame, text="Reverse", command=self.reverse_pdf).pack(side=tk.RIGHT, padx=5, pady=5)
 
-        # Progress Bar Frame with Label
-        progress_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
-        progress_frame.pack(fill=tk.X, pady=(20, 10))  # Added more top padding
-        
-       # Progress Bar Frame (removed label since we won't show percentage)
+        # Separator
+        tk.Frame(self.main_frame, bg=self.FONT_COLOR, height=2).pack(fill=tk.X, pady=10)
+
+        # Sign PDF Section
+        sign_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
+        sign_frame.pack(fill=tk.X, pady=10)
+
+        tk.Label(
+            sign_frame, text="Sign PDF:", bg=self.BG_COLOR, fg=self.FONT_COLOR, font=self.bold_font
+        ).pack(anchor="w")
+
+        self.sign_input = tk.Entry(
+            sign_frame,
+            font=self.bold_font,
+            fg=self.FONT_COLOR,
+            bg=self.WHITE,
+            relief=tk.FLAT,
+            highlightthickness=2,
+            highlightbackground=self.FONT_COLOR,
+            highlightcolor=self.INPUT_FOCUS,
+        )
+        self.sign_input.pack(fill=tk.X, pady=5)
+
+        ttk.Button(sign_frame, text="Browse PDF", command=self.select_sign_pdf).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(sign_frame, text="Open Signer", command=self.open_pdf_signer).pack(side=tk.RIGHT, padx=5, pady=5)
+
+        # Progress Bar Frame (removed label since we won't show percentage)
         progress_frame = tk.Frame(self.main_frame, bg=self.BG_COLOR)
         progress_frame.pack(fill=tk.X, pady=(20, 10))
 
@@ -365,6 +387,22 @@ class PDFToolApp:
             return
         
         editor = PDFPageEditor(self.root, self.merge_pdf_list.copy())
+    
+    def select_sign_pdf(self):
+        """Select a PDF file to sign"""
+        file_path = filedialog.askopenfilename(title="Select PDF to Sign", filetypes=[("PDF files", "*.pdf")])
+        if file_path:
+            self.sign_input.delete(0, tk.END)
+            self.sign_input.insert(0, file_path)
+    
+    def open_pdf_signer(self):
+        """Open the PDF signer window"""
+        pdf_path = self.sign_input.get()
+        if not pdf_path or not os.path.exists(pdf_path):
+            messagebox.showwarning("Warning", "Please select a valid PDF file to sign!")
+            return
+        
+        signer = PDFSignerApp(self.root, pdf_path)
 
 
 class PDFPageEditor:
@@ -919,6 +957,280 @@ class PDFPageEditor:
                 except:
                     pass
         
+        self.window.destroy()
+
+
+class PDFSignerApp:
+    def __init__(self, parent, pdf_path):
+        self.parent = parent
+        self.pdf_path = pdf_path
+        self.image_path = None
+        self.pdf_doc = None
+        self.current_page = 0
+        self.signature_img = None
+        self.sig_start_x = None
+        self.sig_start_y = None
+        self.dragging = False
+        self.signatures = {}  # Store signatures per page: {page_num: rect}
+        
+        # Create signer window
+        self.window = tk.Toplevel(parent)
+        self.window.title("PDF Signature Tool")
+        self.window.geometry("1200x800")
+        self.window.resizable(True, True)
+        
+        # Load PDF
+        self.pdf_doc = fitz.open(pdf_path)
+        
+        # Setup UI
+        self.setup_ui()
+        
+        # Display first page
+        self.display_page()
+        
+        # Make window modal
+        self.window.transient(parent)
+        self.window.grab_set()
+    
+    def setup_ui(self):
+        # Top frame for buttons
+        top_frame = tk.Frame(self.window, bg="#f0f0f0")
+        top_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+        
+        ttk.Button(top_frame, text="Select Signature", command=self.select_signature).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Add to This Page", command=self.add_signature_to_page).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Clear This Page", command=self.clear_page_signature).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Save Signed PDF", command=self.save_pdf).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Close", command=self.close_signer).pack(side=tk.RIGHT, padx=5)
+        
+        # Page navigation
+        self.page_label = tk.Label(top_frame, text="Page: 0/0", font=("Segoe UI", 10, "bold"), bg="#f0f0f0")
+        self.page_label.pack(side=tk.LEFT, padx=20)
+        
+        ttk.Button(top_frame, text="Previous", command=self.prev_page).pack(side=tk.LEFT, padx=5)
+        ttk.Button(top_frame, text="Next", command=self.next_page).pack(side=tk.LEFT, padx=5)
+        
+        # Canvas frame with scrollbars
+        canvas_frame = tk.Frame(self.window)
+        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Canvas for PDF display
+        self.canvas = tk.Canvas(canvas_frame, bg="gray")
+        v_scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
+        h_scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
+        
+        self.canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Bind mouse events for dragging signature
+        self.canvas.bind("<Button-1>", self.on_mouse_down)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
+        
+        # Status label
+        self.status_label = tk.Label(self.window, text="No signatures added yet", 
+                                     bg="#e0e0e0", pady=5, font=("Segoe UI", 9))
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Instructions
+        instructions = tk.Label(self.window, 
+                               text="1. Select Signature  2. Drag on page to place  3. Click 'Add to This Page'  4. Navigate pages and repeat  5. Save", 
+                               bg="#d0d0d0", pady=5, font=("Segoe UI", 9))
+        instructions.pack(side=tk.BOTTOM, fill=tk.X)
+    
+    def select_signature(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Signature Image",
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp")]
+        )
+        if file_path:
+            self.image_path = file_path
+            messagebox.showinfo("Success", "Signature loaded! Click and drag on the PDF to place it.")
+    
+    def display_page(self):
+        if not self.pdf_doc:
+            return
+        
+        page = self.pdf_doc[self.current_page]
+        
+        # Get canvas dimensions
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        if canvas_width <= 1:
+            canvas_width = 1000
+        if canvas_height <= 1:
+            canvas_height = 700
+        
+        # Calculate zoom to fit
+        page_rect = page.rect
+        zoom_w = (canvas_width - 40) / page_rect.width
+        zoom_h = (canvas_height - 40) / page_rect.height
+        zoom_factor = min(zoom_w, zoom_h)
+        
+        # Render page
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom_factor, zoom_factor))
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        
+        self.pdf_image = ImageTk.PhotoImage(img)
+        self.zoom_factor = zoom_factor
+        
+        self.canvas.delete("all")
+        self.canvas.create_image(20, 20, anchor=tk.NW, image=self.pdf_image)
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+        
+        self.page_label.config(text=f"Page: {self.current_page + 1}/{len(self.pdf_doc)}")
+        
+        # Reset signature position
+        self.sig_start_x = None
+        self.sig_start_y = None
+        
+        # Show existing signature on this page if any
+        if self.current_page in self.signatures:
+            rect = self.signatures[self.current_page]
+            x1, y1, x2, y2 = rect[0] * zoom_factor + 20, rect[1] * zoom_factor + 20, rect[2] * zoom_factor + 20, rect[3] * zoom_factor + 20
+            self.canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3, tags="saved_signature")
+            self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text="✓ Signature Added", 
+                                   fill="blue", font=("Arial", 12, "bold"), tags="saved_signature")
+        
+        self.update_status()
+    
+    def prev_page(self):
+        if self.pdf_doc and self.current_page > 0:
+            self.current_page -= 1
+            self.display_page()
+    
+    def next_page(self):
+        if self.pdf_doc and self.current_page < len(self.pdf_doc) - 1:
+            self.current_page += 1
+            self.display_page()
+    
+    def on_mouse_down(self, event):
+        if not self.image_path or not self.pdf_doc:
+            messagebox.showwarning("Warning", "Please select a signature image first!")
+            return
+        
+        self.dragging = True
+        self.sig_start_x = event.x
+        self.sig_start_y = event.y
+    
+    def on_mouse_drag(self, event):
+        if self.dragging and self.image_path:
+            self.canvas.delete("signature_preview")
+            self.canvas.create_rectangle(
+                self.sig_start_x, self.sig_start_y,
+                event.x, event.y,
+                outline="red", width=2, tags="signature_preview"
+            )
+    
+    def on_mouse_up(self, event):
+        if not self.dragging:
+            return
+        
+        self.dragging = False
+        
+        if self.sig_start_x and self.sig_start_y:
+            # Calculate final rectangle
+            x1 = min(self.sig_start_x, event.x)
+            y1 = min(self.sig_start_y, event.y)
+            x2 = max(self.sig_start_x, event.x)
+            y2 = max(self.sig_start_y, event.y)
+            
+            # Draw final preview
+            self.canvas.delete("signature_preview")
+            self.canvas.create_rectangle(x1, y1, x2, y2, outline="green", width=2, tags="signature_preview")
+            self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text="Signature Here", 
+                                   fill="green", tags="signature_preview")
+            
+            # Store coordinates (adjusted for zoom and offset)
+            zoom = getattr(self, 'zoom_factor', 1.0)
+            self.temp_sig_rect = ((x1 - 20) / zoom, (y1 - 20) / zoom, (x2 - 20) / zoom, (y2 - 20) / zoom)
+    
+    def add_signature_to_page(self):
+        if not self.pdf_doc or not self.image_path:
+            messagebox.showwarning("Warning", "Please select a signature image first!")
+            return
+        
+        if not hasattr(self, 'temp_sig_rect'):
+            messagebox.showwarning("Warning", "Please drag on the PDF to place the signature first!")
+            return
+        
+        # Save signature for this page
+        self.signatures[self.current_page] = self.temp_sig_rect
+        
+        # Update display
+        self.canvas.delete("signature_preview")
+        zoom = getattr(self, 'zoom_factor', 1.0)
+        x1, y1, x2, y2 = self.temp_sig_rect[0] * zoom + 20, self.temp_sig_rect[1] * zoom + 20, self.temp_sig_rect[2] * zoom + 20, self.temp_sig_rect[3] * zoom + 20
+        self.canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3, tags="saved_signature")
+        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2, text="✓ Signature Added", 
+                               fill="blue", font=("Arial", 12, "bold"), tags="saved_signature")
+        
+        self.update_status()
+        messagebox.showinfo("Success", f"Signature added to page {self.current_page + 1}!")
+    
+    def clear_page_signature(self):
+        if self.current_page in self.signatures:
+            del self.signatures[self.current_page]
+            self.canvas.delete("saved_signature")
+            self.canvas.delete("signature_preview")
+            self.update_status()
+            messagebox.showinfo("Cleared", f"Signature removed from page {self.current_page + 1}")
+        else:
+            messagebox.showinfo("Info", "No signature on this page to clear")
+    
+    def update_status(self):
+        if not self.signatures:
+            self.status_label.config(text="No signatures added yet")
+        else:
+            pages = sorted([p + 1 for p in self.signatures.keys()])
+            self.status_label.config(text=f"Signatures on pages: {', '.join(map(str, pages))}")
+    
+    def save_pdf(self):
+        if not self.pdf_doc or not self.image_path:
+            messagebox.showwarning("Warning", "Please select a signature image first!")
+            return
+        
+        if not self.signatures:
+            messagebox.showwarning("Warning", "Please add at least one signature to a page first!")
+            return
+        
+        output_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")],
+            initialfile="signed_output.pdf",
+            title="Save Signed PDF As"
+        )
+        
+        if output_path:
+            try:
+                # Create a copy of the PDF
+                output_doc = fitz.open(self.pdf_path)
+                
+                # Apply all signatures
+                for page_num, rect in self.signatures.items():
+                    page = output_doc[page_num]
+                    page.insert_image(fitz.Rect(rect), filename=self.image_path)
+                
+                # Save the signed PDF
+                output_doc.save(output_path)
+                output_doc.close()
+                
+                pages_signed = ', '.join([str(p + 1) for p in sorted(self.signatures.keys())])
+                messagebox.showinfo("Success", f"PDF saved with signatures on pages: {pages_signed}\n\nSaved as: {output_path}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save signed PDF: {str(e)}")
+    
+    def close_signer(self):
+        """Close the signer window"""
+        if self.pdf_doc:
+            try:
+                self.pdf_doc.close()
+            except:
+                pass
         self.window.destroy()
 
 
