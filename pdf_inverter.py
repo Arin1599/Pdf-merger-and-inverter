@@ -89,7 +89,7 @@ class PDFToolApp:
         # Title
         title_label = tk.Label(
             self.main_frame,
-            text="PDF Merger & Reverser",
+            text="PDF Wizard",
             font=self.title_font,
             fg=self.FONT_COLOR,
             bg=self.BG_COLOR,
